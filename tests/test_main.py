@@ -20,7 +20,7 @@ class GreetingTests(unittest.TestCase):
         self.env = {
             "APP_ID": "test-app", "APP_SECRET": "secret-never-log",
             "TEMPLATE_ID": "test-template", "USER_ID": " user-a\r\n\r\nuser-b\nuser-a ",
-            "START_DATE": "2022-08-09", "BIRTHDAY": "2027-05-20", "CITY": "北京",
+            "START_DATE": "2022-08-09", "BIRTHDAY": "2028-05-20", "CITY": "北京",
         }
         self.config = main.load_config(self.env)
         self.session = Mock()
@@ -38,11 +38,11 @@ class GreetingTests(unittest.TestCase):
                 main.load_config(dict(self.env, **{field: value}))
 
     def test_target_countdown_stays_zero_on_and_after_the_target(self):
-        target = date(2027, 5, 20)
-        self.assertEqual(main.get_birthday(target, date(2027, 5, 19)), 1)
-        self.assertEqual(main.get_birthday(target, date(2027, 5, 20)), 0)
-        self.assertEqual(main.get_birthday(target, date(2027, 5, 21)), 0)
-        self.assertEqual(main.get_birthday(target, date(2028, 1, 1)), 0)
+        target = date(2028, 5, 20)
+        self.assertEqual(main.get_birthday(target, date(2028, 5, 19)), 1)
+        self.assertEqual(main.get_birthday(target, date(2028, 5, 20)), 0)
+        self.assertEqual(main.get_birthday(target, date(2028, 5, 21)), 0)
+        self.assertEqual(main.get_birthday(target, date(2029, 1, 1)), 0)
 
     def test_target_date_preserves_the_year_across_multiple_years(self):
         config = main.load_config(dict(self.env, BIRTHDAY=" 2028-05-20 "))
@@ -111,7 +111,7 @@ class GreetingTests(unittest.TestCase):
         data = main.build_data(self.config, self.session, today=date(2026, 10, 11))
         self.assertEqual(set(data), {"date", "weather", "temperature", "highest", "lowest",
                                     "love_days", "birthday_left", "words"})
-        self.assertEqual(data["birthday_left"]["value"], "221")
+        self.assertEqual(data["birthday_left"]["value"], "587")
         self.assertEqual(data["love_days"]["value"], str((date(2026, 10, 11) - date(2022, 8, 9)).days))
         self.assertTrue(all(isinstance(item["value"], str) for item in data.values()))
 
@@ -121,7 +121,7 @@ class GreetingTests(unittest.TestCase):
         with patch.object(main, "datetime", frozen), patch.object(main, "get_weather", return_value=main.WEATHER_FALLBACK), patch.object(main, "get_words", return_value=main.WORDS_FALLBACK):
             data = main.build_data(self.config, self.session)
         self.assertEqual(data["date"]["value"], "2026-10-11")
-        self.assertEqual(data["birthday_left"]["value"], "221")
+        self.assertEqual(data["birthday_left"]["value"], "587")
 
     def test_wechat_errors_are_not_counted_as_success_and_other_users_continue(self):
         self.session.get.return_value = response({"access_token": "test-token"})

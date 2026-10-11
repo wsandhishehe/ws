@@ -56,7 +56,7 @@ jobs:
           USER_ID: ${{ secrets.USER_ID }}
           START_DATE: ${{ secrets.START_DATE }}
           # One-time long-distance relationship countdown; optional repository variable override.
-          BIRTHDAY: ${{ vars.END_DATE || '2027-05-20' }}
+          BIRTHDAY: ${{ vars.END_DATE || '2028-05-20' }}
           CITY: ${{ secrets.CITY }}
           CITY_COORDINATES: ${{ secrets.CITY_COORDINATES }}
           PYTHONUNBUFFERED: '1'
