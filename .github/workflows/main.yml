@@ -1,32 +1,69 @@
 name: morning
+
 on:
   schedule:
-  - cron:  '0 0 * * *'
+    # UTC 00:00 = 北京时间 08:00；修改 cron 表达式以恢复停用的定时任务。
+    - cron: '0 0 * * 0-6'
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: '只预览，不发送微信消息（实际发送请取消勾选）'
+        type: boolean
+        default: true
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: morning-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  send_message:
+  test:
     runs-on: ubuntu-latest
-    name: send morning to your girlfriend
-
+    timeout-minutes: 5
     steps:
-    - name: checkout
-      uses: actions/checkout@v3
-      with:
-        ref: master
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements.txt
+      - run: python -m unittest discover -s tests -v
 
-    - name: sender
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.x'
-        architecture: 'x64'
-    - run: pip install -r ./requirements.txt && python ./main.py
-
-    env:
-      APP_ID: ${{ secrets.APP_ID }}
-      APP_SECRET: ${{ secrets.APP_SECRET }}
-      TEMPLATE_ID: ${{ secrets.TEMPLATE_ID }}
-      USER_ID: ${{ secrets.USER_ID }}
-      START_DATE: ${{ secrets.START_DATE }}
-      BIRTHDAY: ${{ secrets.BIRTHDAY }}
-      CITY: ${{ secrets.CITY }}
+  send_message:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: validate or send greeting
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements.txt
+      - name: Send or preview greeting
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          EVENT_NAME: ${{ github.event_name }}
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_SECRET: ${{ secrets.APP_SECRET }}
+          TEMPLATE_ID: ${{ secrets.TEMPLATE_ID }}
+          USER_ID: ${{ secrets.USER_ID }}
+          START_DATE: ${{ secrets.START_DATE }}
+          BIRTHDAY: ${{ secrets.BIRTHDAY }}
+          CITY: ${{ secrets.CITY }}
+          CITY_COORDINATES: ${{ secrets.CITY_COORDINATES }}
+          PYTHONUNBUFFERED: '1'
+        run: |
+          if [ "$EVENT_NAME" = "push" ]; then
+            python main.py --check
+          elif [ "$DRY_RUN" = "true" ]; then
+            python main.py --dry-run
+          else
+            python main.py
+          fi

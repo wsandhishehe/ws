@@ -1,6 +1,50 @@
 **从任何平台过来的朋友们请先阅读此内容哦！**
 # 每日早安推送给别人家的女朋友
 
+## 2026 年运行修复
+
+已更换失效的天气接口，固定 Python 3.12，并为天气和早安文案加入超时、有限重试及备用文本。
+原有的微信模板字段与 Secrets 名称可以继续使用，新增 `date` 字段供原示例模板显示日期。
+
+配置位置：仓库 **Settings → Secrets and variables → Actions → Repository secrets**。
+
+| Secret | 内容 |
+| --- | --- |
+| `APP_ID` | 微信测试号 appID |
+| `APP_SECRET` | 微信测试号 appsecret |
+| `TEMPLATE_ID` | 此测试号下的模板 ID |
+| `USER_ID` | 接收人的 OpenID，多个接收人每行一个，接收人须关注该测试号 |
+| `START_DATE` | 纪念日，格式 `2022-08-09` |
+| `BIRTHDAY` | 生日，格式 `05-20`，按公历计算 |
+| `CITY` | 中国城市，例如 `北京`、`武汉`、`承德` |
+| `CITY_COORDINATES`（可选） | 城市重名或无法识别时，指定 `纬度,经度`，例如 `39.9075,116.39723` |
+
+每天北京时间 08:00 执行（GitHub 可能延迟）。进入 **Actions → morning** 检查是否启用；
+若提示长期无活动导致停用，点击 **Enable workflow**。公开仓库连续 60 天无活动仍会再次停用，
+需重新启用，详见 [GitHub 定时任务说明](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)。
+
+手动检查：点击 **Run workflow**，默认勾选 `dry_run`，只生成内容预览；
+确认内容正确后，取消勾选 `dry_run` 再运行才会发送微信。每天的定时运行会正常发送。
+代码提交执行自动测试与微信配置验证，不发送消息；Pull Request 只执行自动测试。
+
+运行失败时，日志会说明缺失的配置名称或微信错误码。常见检查项包括 appID/appsecret 是否匹配、
+接收人是否仍关注测试号、模板是否属于该测试号，以及微信是否要求配置 IP 白名单。
+微信接口返回成功表示消息已受理；手机实际收到消息仍需在微信端确认。
+
+本地运行（Python 3.12，先设置上述环境变量）：
+
+```sh
+python -m pip install -r requirements.txt
+python -m unittest discover -s tests -v
+python main.py --check
+python main.py --dry-run
+python main.py
+```
+
+天气使用 [Open-Meteo](https://open-meteo.com/)，位置数据来自 [GeoNames](https://www.geonames.org/)。
+其免费接口用于本项目的个人非商业推送；天气暂不可用时，消息会显示备用文本而不提供虚构温度。
+生日当天倒计时为 0；2 月 29 日生日按下一次实际的 2 月 29 日计算。
+
 ## 自我推广
 
 本人在维护一套全新的闭源平台，不过要收费。可以让大家完善地自定义各种字段，模板内容。如果大家愿意，可以使用二维码进微信群详聊。但请注意，此群只解答收费项目相关的内容，与本项目相关的内容请勿进群。
