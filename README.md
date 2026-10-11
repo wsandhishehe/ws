@@ -31,6 +31,11 @@
 接收人是否仍关注测试号、模板是否属于该测试号，以及微信是否要求配置 IP 白名单。
 微信接口返回成功表示消息已受理；手机实际收到消息仍需在微信端确认。
 
+如果获取 access_token 返回 `50002` / `user limited`，需登录
+[微信测试号后台](https://mp.weixin.qq.com/debug/cgi-bin/sandbox?t=sandbox/login)
+检查账号状态和接口权限。恢复账号权限后可重新执行配置验证；若使用另一个可用测试号，
+须同步更新 `APP_ID`、`APP_SECRET`、`TEMPLATE_ID`、`USER_ID`，并让接收人关注新的测试号。
+
 本地运行（Python 3.12，先设置上述环境变量）：
 
 ```sh

@@ -171,6 +171,11 @@ def get_access_token(session, config):
     if not isinstance(body, dict):
         raise ValueError("微信认证响应格式异常，请检查微信服务。")
     if not body.get("access_token"):
+        if body.get("errcode") == 50002:
+            limited = "user limited" in str(body.get("errmsg", "")).lower()
+            status = "，微信返回 user limited（账号/接口受限）" if limited else ""
+            raise ValueError("微信获取 access_token 失败，错误码：50002%s；"
+                             "请登录微信公众平台测试号后台，检查账号状态和接口权限。" % status)
         raise ValueError("微信获取 access_token 失败，错误码：%s；检查 APP_ID、APP_SECRET 和 IP 白名单。"
                          % body.get("errcode", "unknown"))
     return body["access_token"]

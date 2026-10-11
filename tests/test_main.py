@@ -164,6 +164,13 @@ class GreetingTests(unittest.TestCase):
             self.assertEqual(main.send_messages(self.session, self.config, {}), 1)
         self.assertEqual(self.session.post.call_count, 2)
 
+    def test_restricted_wechat_account_has_specific_guidance_without_raw_error(self):
+        self.session.get.return_value = response({"errcode": 50002, "errmsg": "user limited rid: secret-never-log"})
+        with self.assertRaisesRegex(ValueError, "50002.*user limited.*账号状态") as error:
+            main.get_access_token(self.session, self.config)
+        self.assertNotIn("secret-never-log", str(error.exception))
+        self.session.post.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
