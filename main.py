@@ -5,6 +5,7 @@ import logging
 import math
 import os
 import random
+import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 
@@ -156,6 +157,7 @@ def build_data(config, session, today=None):
         "love_days": (today - config.start_date).days,
         "birthday_left": get_birthday(config.birthday, today), "words": get_words(session),
     }
+    LOGGER.info("随机文案已生成：%d 个字符，发送字段为 words。", len(values["words"]))
     return {key: {"value": str(value), "color": "#%06x" % random.randint(0, 0xFFFFFF)}
             for key, value in values.items()}
 
@@ -179,6 +181,34 @@ def get_access_token(session, config):
         raise ValueError("微信获取 access_token 失败，错误码：%s；检查 APP_ID、APP_SECRET 和 IP 白名单。"
                          % body.get("errcode", "unknown"))
     return body["access_token"]
+
+
+def inspect_template(session, config, token):
+    """Inspect field compatibility without logging template content or identifiers."""
+    try:
+        response = session.get(
+            "https://api.weixin.qq.com/cgi-bin/template/get_all_private_template",
+            params={"access_token": token}, timeout=TIMEOUT,
+        )
+        response.raise_for_status()
+        body = response.json()
+        if not isinstance(body, dict) or "template_list" not in body:
+            LOGGER.warning("微信未提供模板列表，需在测试号后台核对 {{words.DATA}}。")
+            return None
+        template = next((item for item in body["template_list"]
+                         if item.get("template_id") == config.template_id), None)
+        if template is None:
+            LOGGER.warning("模板列表中未找到配置的模板，需在测试号后台核对 TEMPLATE_ID。")
+            return None
+        has_words = bool(re.search(r"\{\{\s*words\.DATA\s*\}\}", template.get("content", "")))
+        if has_words:
+            LOGGER.info("当前模板包含正确的 {{words.DATA}} 占位符。")
+        else:
+            LOGGER.warning("当前模板缺少 {{words.DATA}} 占位符，随机文案无法显示。")
+        return has_words
+    except (requests.RequestException, ValueError, KeyError, TypeError, AttributeError):
+        LOGGER.warning("模板列表检查暂不可用，需在测试号后台核对 {{words.DATA}}。")
+        return None
 
 
 def send_messages(session, config, data):
@@ -221,7 +251,8 @@ def main(argv=None):
         with create_session() as session:
             data = build_data(config, session)
             if args.check:
-                get_access_token(session, config)
+                token = get_access_token(session, config)
+                inspect_template(session, config, token)
                 print("配置与微信认证检查通过，未发送消息。")
                 return 0
             if args.dry_run:

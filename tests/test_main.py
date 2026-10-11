@@ -171,6 +171,21 @@ class GreetingTests(unittest.TestCase):
         self.assertNotIn("secret-never-log", str(error.exception))
         self.session.post.assert_not_called()
 
+    def test_template_inspection_checks_only_the_configured_template(self):
+        self.session.get.return_value = response({"template_list": [
+            {"template_id": "other-template", "content": "{{words.DATA}}"},
+            {"template_id": "test-template", "content": "{{random.DATA}}"},
+        ]})
+        self.assertFalse(main.inspect_template(self.session, self.config, "test-token"))
+        self.session.get.return_value = response({"template_list": [
+            {"template_id": "test-template", "content": "今日文案：{{ words.DATA }}"},
+        ]})
+        self.assertTrue(main.inspect_template(self.session, self.config, "test-token"))
+
+    def test_unsupported_template_list_does_not_break_authentication_check(self):
+        self.session.get.return_value = response({"errcode": 48001})
+        self.assertIsNone(main.inspect_template(self.session, self.config, "test-token"))
+
 
 if __name__ == "__main__":
     unittest.main()
