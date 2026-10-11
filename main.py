@@ -53,9 +53,14 @@ def load_config(env=None, dry_run=False):
     except ValueError:
         raise ValueError("START_DATE 必须是有效日期，格式为 YYYY-MM-DD") from None
     try:
-        birthday = datetime.strptime("2000-" + env["BIRTHDAY"].strip(), "%Y-%m-%d").date()
+        birthday_text = env["BIRTHDAY"].strip()
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", birthday_text):
+            birthday = datetime.strptime(birthday_text, "%Y-%m-%d").date()
+        else:
+            # Keep existing MM-DD configurations working; use a leap year to validate February 29.
+            birthday = datetime.strptime("2000-" + birthday_text, "%Y-%m-%d").date()
     except ValueError:
-        raise ValueError("BIRTHDAY 必须是有效生日，格式为 MM-DD") from None
+        raise ValueError("BIRTHDAY 必须是有效生日，格式为 YYYY-MM-DD（兼容 MM-DD）") from None
     users = tuple(dict.fromkeys(user.strip() for user in env.get("USER_ID", "").splitlines() if user.strip()))
     return Config(
         env.get("APP_ID", "").strip(), env.get("APP_SECRET", "").strip(),

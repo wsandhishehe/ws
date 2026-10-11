@@ -41,6 +41,19 @@ class GreetingTests(unittest.TestCase):
         self.assertEqual(main.get_birthday((10, 11), date(2026, 10, 11)), 0)
         self.assertEqual(main.get_birthday((10, 11), date(2026, 10, 12)), 364)
 
+    def test_full_birth_date_uses_month_and_day_for_annual_countdown(self):
+        config = main.load_config(dict(self.env, BIRTHDAY=" 1998-10-11 "))
+        self.assertEqual(config.birthday, (10, 11))
+        self.assertEqual(main.get_birthday(config.birthday, date(2026, 10, 11)), 0)
+        self.assertEqual(main.get_birthday(config.birthday, date(2026, 10, 12)), 364)
+
+    def test_full_birth_date_validates_the_provided_year(self):
+        config = main.load_config(dict(self.env, BIRTHDAY="2000-02-29"))
+        self.assertEqual(config.birthday, (2, 29))
+        for value in ["2001-02-29", "1998-02-30", "19981011", "0000-10-11"]:
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "YYYY-MM-DD"):
+                main.load_config(dict(self.env, BIRTHDAY=value))
+
     def test_leap_day_birthday(self):
         expected = (date(2028, 2, 29) - date(2026, 10, 11)).days
         self.assertEqual(main.get_birthday((2, 29), date(2026, 10, 11)), expected)
