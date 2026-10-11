@@ -20,7 +20,7 @@ class GreetingTests(unittest.TestCase):
         self.env = {
             "APP_ID": "test-app", "APP_SECRET": "secret-never-log",
             "TEMPLATE_ID": "test-template", "USER_ID": " user-a\r\n\r\nuser-b\nuser-a ",
-            "START_DATE": "2022-08-09", "BIRTHDAY": "10-11", "CITY": "北京",
+            "START_DATE": "2022-08-09", "BIRTHDAY": "2027-05-20", "CITY": "北京",
         }
         self.config = main.load_config(self.env)
         self.session = Mock()
@@ -37,27 +37,31 @@ class GreetingTests(unittest.TestCase):
             with self.subTest(field=field), self.assertRaisesRegex(ValueError, field):
                 main.load_config(dict(self.env, **{field: value}))
 
-    def test_birthday_is_zero_on_the_day_and_rolls_over_afterwards(self):
-        self.assertEqual(main.get_birthday((10, 11), date(2026, 10, 11)), 0)
-        self.assertEqual(main.get_birthday((10, 11), date(2026, 10, 12)), 364)
+    def test_target_countdown_stays_zero_on_and_after_the_target(self):
+        target = date(2027, 5, 20)
+        self.assertEqual(main.get_birthday(target, date(2027, 5, 19)), 1)
+        self.assertEqual(main.get_birthday(target, date(2027, 5, 20)), 0)
+        self.assertEqual(main.get_birthday(target, date(2027, 5, 21)), 0)
+        self.assertEqual(main.get_birthday(target, date(2028, 1, 1)), 0)
 
-    def test_full_birth_date_uses_month_and_day_for_annual_countdown(self):
-        config = main.load_config(dict(self.env, BIRTHDAY=" 1998-10-11 "))
-        self.assertEqual(config.birthday, (10, 11))
-        self.assertEqual(main.get_birthday(config.birthday, date(2026, 10, 11)), 0)
-        self.assertEqual(main.get_birthday(config.birthday, date(2026, 10, 12)), 364)
+    def test_target_date_preserves_the_year_across_multiple_years(self):
+        config = main.load_config(dict(self.env, BIRTHDAY=" 2028-05-20 "))
+        self.assertEqual(config.birthday, date(2028, 5, 20))
+        self.assertEqual(main.get_birthday(config.birthday, date(2026, 10, 11)),
+                         (date(2028, 5, 20) - date(2026, 10, 11)).days)
 
     def test_full_birth_date_validates_the_provided_year(self):
         config = main.load_config(dict(self.env, BIRTHDAY="2000-02-29"))
-        self.assertEqual(config.birthday, (2, 29))
-        for value in ["2001-02-29", "1998-02-30", "19981011", "0000-10-11"]:
+        self.assertEqual(config.birthday, date(2000, 2, 29))
+        for value in ["2001-02-29", "1998-02-30", "19981011", "0000-10-11", "05-20"]:
             with self.subTest(value=value), self.assertRaisesRegex(ValueError, "YYYY-MM-DD"):
                 main.load_config(dict(self.env, BIRTHDAY=value))
 
-    def test_leap_day_birthday(self):
+    def test_leap_day_target_is_one_fixed_date(self):
         expected = (date(2028, 2, 29) - date(2026, 10, 11)).days
-        self.assertEqual(main.get_birthday((2, 29), date(2026, 10, 11)), expected)
-        self.assertEqual(main.get_birthday((2, 29), date(2028, 2, 29)), 0)
+        self.assertEqual(main.get_birthday(date(2028, 2, 29), date(2026, 10, 11)), expected)
+        self.assertEqual(main.get_birthday(date(2028, 2, 29), date(2028, 2, 29)), 0)
+        self.assertEqual(main.get_birthday(date(2028, 2, 29), date(2029, 1, 1)), 0)
 
     def test_city_suffix_fallback_avoids_same_named_village(self):
         self.session.get.side_effect = [
@@ -107,7 +111,7 @@ class GreetingTests(unittest.TestCase):
         data = main.build_data(self.config, self.session, today=date(2026, 10, 11))
         self.assertEqual(set(data), {"date", "weather", "temperature", "highest", "lowest",
                                     "love_days", "birthday_left", "words"})
-        self.assertEqual(data["birthday_left"]["value"], "0")
+        self.assertEqual(data["birthday_left"]["value"], "221")
         self.assertEqual(data["love_days"]["value"], str((date(2026, 10, 11) - date(2022, 8, 9)).days))
         self.assertTrue(all(isinstance(item["value"], str) for item in data.values()))
 
@@ -117,7 +121,7 @@ class GreetingTests(unittest.TestCase):
         with patch.object(main, "datetime", frozen), patch.object(main, "get_weather", return_value=main.WEATHER_FALLBACK), patch.object(main, "get_words", return_value=main.WORDS_FALLBACK):
             data = main.build_data(self.config, self.session)
         self.assertEqual(data["date"]["value"], "2026-10-11")
-        self.assertEqual(data["birthday_left"]["value"], "0")
+        self.assertEqual(data["birthday_left"]["value"], "221")
 
     def test_wechat_errors_are_not_counted_as_success_and_other_users_continue(self):
         self.session.get.return_value = response({"access_token": "test-token"})
